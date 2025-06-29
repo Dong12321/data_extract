@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎬 豆瓣电影爬虫 - 智能数据采集</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="50" cy="50" r="1" fill="rgba(255,255,255,0.1)"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+            pointer-events: none;
+            z-index: 1;
+        }
+        
+        .main-container {
+            position: relative;
+            z-index: 2;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 30px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+            backdrop-filter: blur(20px);
+            margin: 20px auto;
+            padding: 40px;
+            max-width: 1200px;
+            animation: slideInUp 0.8s ease-out;
+        }
+        
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            position: relative;
+        }
+        
+        .header::after {
+            content: '';
+            position: absolute;
+            bottom: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100px;
+            height: 4px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border-radius: 2px;
+        }
+        
+        .header h1 {
+            font-weight: 700;
+            font-size: 3rem;
+            margin-bottom: 15px;
+            background: linear-gradient(45deg, #667eea, #764ba2, #f093fb);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: gradientShift 3s ease-in-out infinite;
+        }
+        
+        @keyframes gradientShift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+        
+        .header p {
+            font-size: 1.2rem;
+            color: #6c757d;
+            font-weight: 300;
+        }
+        
+        .form-section {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .form-section:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+        }
+        
+        .field-label {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            position: relative;
+        }
+        
+        .field-label::after {
+            content: '点击选择或搜索字段';
+            position: absolute;
+            right: 0;
+            font-size: 0.8rem;
+            color: #6c757d;
+            font-weight: 400;
+            font-style: italic;
+        }
+        
+        .field-label i {
+            color: #667eea;
+            font-size: 1.2rem;
+        }
+        
+        .select2-container {
+            width: 100% !important;
+        }
+        
+        .select2-container--default .select2-selection--multiple {
+            border: 2px solid #e9ecef;
+            border-radius: 15px;
+            min-height: 80px;
+            max-height: 200px;
+            transition: all 0.3s ease;
+            padding: 10px;
+            background: white;
+        }
+        
+        .select2-container--default.select2-container--focus .select2-selection--multiple {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+            transform: translateY(-2px);
+        }
+        
+        .select2-container--default .select2-selection--multiple .select2-selection__choice {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 8px 15px;
+            margin: 3px;
+            font-weight: 500;
+            font-size: 0.9rem;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .select2-container--default .select2-selection--multiple .select2-selection__choice:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+            color: white;
+            margin-right: 8px;
+            font-weight: bold;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            line-height: 18px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+        
+        .select2-dropdown {
+            border: 2px solid #667eea;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+        }
+        
+        .select2-results__option {
+            padding: 12px 15px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            border-bottom: 1px solid #f8f9fa;
+        }
+        
+        .select2-results__option:hover {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            transform: translateX(5px);
+        }
+        
+        .select2-results__option--highlighted {
+            background: linear-gradient(135deg, #667eea, #764ba2) !important;
+            color: white !important;
+        }
+        
+        .select2-search__field {
+            border: none !important;
+            outline: none !important;
+            font-size: 1rem;
+            padding: 8px 12px;
+            border-radius: 10px;
+            background: #f8f9fa;
+            margin: 5px;
+        }
+        
+        .select2-search__field:focus {
+            background: white;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.25);
+        }
+        
+        .select2-selection__placeholder {
+            color: #6c757d;
+            font-style: italic;
+            font-size: 1rem;
+            padding: 10px;
+        }
+        
+        .field-select-container {
+            position: relative;
+            margin-bottom: 20px;
+        }
+        
+        .field-select-container::before {
+            content: '';
+            position: absolute;
+            top: -5px;
+            left: -5px;
+            right: -5px;
+            bottom: -5px;
+            background: linear-gradient(135deg, #667eea, #764ba2, #f093fb);
+            border-radius: 20px;
+            z-index: -1;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .field-select-container:focus-within::before {
+            opacity: 1;
+        }
+        
+        /* 下拉框动画 */
+        .animated-dropdown {
+            animation: slideDown 0.3s ease-out;
+        }
+        
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        /* 选择框统计信息 */
+        .field-stats {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+            padding: 8px 15px;
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 10px;
+            font-size: 0.9rem;
+            color: #495057;
+        }
+        
+        .field-count {
+            font-weight: 600;
+            color: #667eea;
+        }
+        
+        .field-hint {
+            font-style: italic;
+            color: #6c757d;
+        }
+        
+        /* 计数更新动画 */
+        .count-updated {
+            animation: countPulse 0.3s ease;
+        }
+        
+        @keyframes countPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); color: #28a745; }
+            100% { transform: scale(1); }
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .btn-control {
+            border-radius: 25px;
+            padding: 8px 20px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            border: 2px solid;
+        }
+        
+        .btn-control:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .btn-crawl {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 30px;
+            padding: 15px 40px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn-crawl::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+        
+        .btn-crawl:hover::before {
+            left: 100%;
+        }
+        
+        .btn-crawl:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 30px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-crawl:disabled {
+            opacity: 0.7;
+            transform: none;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 30px 0;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .spinner-container {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .spinner-border {
+            width: 4rem;
+            height: 4rem;
+            border-width: 0.3rem;
+            color: #667eea;
+        }
+        
+        .loading-text {
+            margin-top: 20px;
+            font-size: 1.1rem;
+            color: #6c757d;
+            font-weight: 500;
+        }
+        
+        .results-section {
+            display: none;
+            margin-top: 40px;
+            animation: slideInUp 0.6s ease;
+        }
+        
+        .stats-card {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            border-radius: 20px;
+            padding: 25px;
+            text-align: center;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(40, 167, 69, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stats-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(0.8); opacity: 0.5; }
+            50% { transform: scale(1.2); opacity: 0.2; }
+            100% { transform: scale(0.8); opacity: 0.5; }
+        }
+        
+        .stats-card h4 {
+            font-weight: 600;
+            margin-bottom: 10px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .table-container {
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+        
+        .table {
+            margin-bottom: 0;
+        }
+        
+        .table th {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            font-weight: 600;
+            padding: 15px;
+            font-size: 0.95rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .table td {
+            vertical-align: middle;
+            border-color: #f8f9fa;
+            padding: 12px 15px;
+            font-size: 0.9rem;
+        }
+        
+        .table tbody tr {
+            transition: all 0.3s ease;
+        }
+        
+        .table tbody tr:hover {
+            background-color: #f8f9fa;
+            transform: scale(1.01);
+        }
+        
+        .badge {
+            font-size: 0.8rem;
+            padding: 5px 10px;
+            border-radius: 15px;
+        }
+        
+        .btn-detail {
+            border-radius: 20px;
+            padding: 5px 15px;
+            font-size: 0.8rem;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-detail:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .alert {
+            border-radius: 15px;
+            border: none;
+            padding: 15px 20px;
+            font-weight: 500;
+            animation: shake 0.5s ease;
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .feature-card {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        .feature-icon {
+            font-size: 2rem;
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        
+        .feature-title {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 10px;
+        }
+        
+        .feature-desc {
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+        
+        /* 响应式优化 */
+        @media (max-width: 768px) {
+            .main-container {
+                margin: 10px;
+                padding: 20px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .btn-group {
+                flex-direction: column;
+            }
+            
+            .table-responsive {
+                font-size: 0.8rem;
+            }
+            
+            .select2-container--default .select2-selection--multiple {
+                min-height: 60px;
+                max-height: 150px;
+            }
+            
+            .field-label::after {
+                display: none;
+            }
+            
+            .field-stats {
+                flex-direction: column;
+                gap: 5px;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="main-container">
+            <div class="header">
+                <h1><i class="fas fa-film"></i> 豆瓣电影爬虫</h1>
+                <p>智能数据采集系统 - 自定义字段选择</p>
+            </div>
+
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-magic"></i>
+                    </div>
+                    <div class="feature-title">智能爬取</div>
+                    <div class="feature-desc">自动获取豆瓣Top250电影数据</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-cogs"></i>
+                    </div>
+                    <div class="feature-title">自定义字段</div>
+                    <div class="feature-desc">灵活选择需要的数据字段</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-chart-bar"></i>
+                    </div>
+                    <div class="feature-title">实时展示</div>
+                    <div class="feature-desc">美观的表格展示爬取结果</div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="field-select-container">
+                    <div class="field-label">
+                        <i class="fas fa-list-check"></i>
+                        选择爬取字段
+                    </div>
+                    <select id="fieldSelect" multiple class="form-select">
+                        {% for key, value in fields.items() %}
+                        <option value="{{ key }}">{{ value }}</option>
+                        {% endfor %}
+                    </select>
+                    <div class="field-stats">
+                        <span class="field-count">已选择: <span id="selectedCount">4</span> 个字段</span>
+                        <span class="field-hint">最多可选择 10 个字段</span>
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button type="button" class="btn btn-outline-primary btn-control" onclick="selectAll()">
+                        <i class="fas fa-check-double"></i> 全选
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary btn-control" onclick="clearAll()">
+                        <i class="fas fa-times"></i> 清空
+                    </button>
+                </div>
+            </div>
+
+            <div class="text-center">
+                <button id="crawlBtn" class="btn btn-crawl text-white" onclick="startCrawl()">
+                    <i class="fas fa-rocket"></i> 开始爬取
+                </button>
+            </div>
+
+            <div id="loading" class="loading">
+                <div class="spinner-container">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">爬取中...</span>
+                    </div>
+                </div>
+                <div class="loading-text">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    正在爬取豆瓣电影数据，请稍候...
+                </div>
+            </div>
+
+            <div id="resultsSection" class="results-section">
+                <div id="statsCard" class="stats-card">
+                    <h4 id="statsText">
+                        <i class="fas fa-check-circle"></i> 爬取完成！
+                    </h4>
+                </div>
+
+                <div class="table-container">
+                    <div class="table-responsive">
+                        <table id="resultsTable" class="table table-hover">
+                            <thead>
+                                <tr id="tableHeader">
+                                </tr>
+                            </thead>
+                            <tbody id="tableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="errorAlert" class="alert alert-danger mt-3" style="display: none;">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span id="errorMessage"></span>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    
+    <script>
+        $(document).ready(function() {
+            // 初始化Select2
+            $('#fieldSelect').select2({
+                placeholder: '请选择要爬取的字段',
+                allowClear: true,
+                width: '100%',
+                templateResult: formatOption,
+                templateSelection: formatOption,
+                closeOnSelect: false,
+                maximumSelectionLength: 10,
+                language: {
+                    maximumSelected: function (e) {
+                        return '最多只能选择 ' + e.maximum + ' 个字段';
+                    }
+                }
+            });
+
+            // 默认选择一些常用字段
+            $('#fieldSelect').val(['title', 'rank', 'director', 'year']).trigger('change');
+            
+            // 添加选择框焦点效果
+            $('#fieldSelect').on('select2:open', function() {
+                $('.select2-dropdown').addClass('animated-dropdown');
+            });
+            
+            $('#fieldSelect').on('select2:close', function() {
+                $('.select2-dropdown').removeClass('animated-dropdown');
+            });
+            
+            // 实时更新选择计数
+            $('#fieldSelect').on('change', function() {
+                const selectedCount = $(this).val() ? $(this).val().length : 0;
+                $('#selectedCount').text(selectedCount);
+                
+                // 添加计数动画
+                $('#selectedCount').addClass('count-updated');
+                setTimeout(() => {
+                    $('#selectedCount').removeClass('count-updated');
+                }, 300);
+            });
+        });
+
+        function formatOption(option) {
+            if (!option.id) return option.text;
+            
+            const fieldIcons = {
+                'title': 'fas fa-film',
+                'rank': 'fas fa-star',
+                'subject': 'fas fa-quote-left',
+                'director': 'fas fa-user-tie',
+                'actors': 'fas fa-users',
+                'year': 'fas fa-calendar',
+                'country': 'fas fa-globe',
+                'genre': 'fas fa-tags',
+                'rating_people': 'fas fa-chart-line',
+                'movie_url': 'fas fa-link'
+            };
+            
+            const icon = fieldIcons[option.id] || 'fas fa-tag';
+            return $('<span><i class="' + icon + ' me-2"></i>' + option.text + '</span>');
+        }
+
+        function selectAll() {
+            $('#fieldSelect').find('option').prop('selected', true);
+            $('#fieldSelect').trigger('change');
+            showToast('已选择所有字段', 'success');
+        }
+
+        function clearAll() {
+            $('#fieldSelect').val(null).trigger('change');
+            showToast('已清空所有选择', 'info');
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = $(`
+                <div class="toast align-items-center text-white bg-${type === 'success' ? 'success' : 'info'} border-0" role="alert">
+                    <div class="d-flex">
+                        <div class="toast-body">
+                            <i class="fas fa-${type === 'success' ? 'check' : 'info'}-circle me-2"></i>
+                            ${message}
+                        </div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                    </div>
+                </div>
+            `);
+            
+            $('.toast-container').remove();
+            $('body').append('<div class="toast-container position-fixed top-0 end-0 p-3"></div>');
+            $('.toast-container').append(toast);
+            new bootstrap.Toast(toast[0]).show();
+        }
+
+        function startCrawl() {
+            const selectedFields = $('#fieldSelect').val();
+            
+            if (!selectedFields || selectedFields.length === 0) {
+                showError('请至少选择一个字段');
+                return;
+            }
+
+            // 显示加载状态
+            $('#loading').show();
+            $('#resultsSection').hide();
+            $('#errorAlert').hide();
+            $('#crawlBtn').prop('disabled', true);
+            $('#crawlBtn').html('<i class="fas fa-spinner fa-spin"></i> 爬取中...');
+
+            // 发送爬取请求
+            fetch('/crawl', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    fields: selectedFields
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                $('#loading').hide();
+                $('#crawlBtn').prop('disabled', false);
+                $('#crawlBtn').html('<i class="fas fa-rocket"></i> 开始爬取');
+
+                if (data.success) {
+                    showResults(data);
+                    showToast(`成功爬取 ${data.total_count} 条数据`, 'success');
+                } else {
+                    showError(data.error || '爬取失败');
+                }
+            })
+            .catch(error => {
+                $('#loading').hide();
+                $('#crawlBtn').prop('disabled', false);
+                $('#crawlBtn').html('<i class="fas fa-rocket"></i> 开始爬取');
+                showError('网络错误: ' + error.message);
+            });
+        }
+
+        function showResults(data) {
+            // 更新统计信息
+            $('#statsText').html(`<i class="fas fa-check-circle"></i> 爬取完成！共获取 ${data.total_count} 条电影数据`);
+            
+            // 创建表头
+            const headerRow = $('#tableHeader');
+            headerRow.empty();
+            data.fields.forEach(field => {
+                const fieldNames = {
+                    'title': '电影标题',
+                    'rank': '评分',
+                    'subject': '简介',
+                    'director': '导演',
+                    'actors': '主演',
+                    'year': '年份',
+                    'country': '国家/地区',
+                    'genre': '类型',
+                    'rating_people': '评价人数',
+                    'movie_url': '电影链接'
+                };
+                const fieldIcons = {
+                    'title': 'fas fa-film',
+                    'rank': 'fas fa-star',
+                    'subject': 'fas fa-quote-left',
+                    'director': 'fas fa-user-tie',
+                    'actors': 'fas fa-users',
+                    'year': 'fas fa-calendar',
+                    'country': 'fas fa-globe',
+                    'genre': 'fas fa-tags',
+                    'rating_people': 'fas fa-chart-line',
+                    'movie_url': 'fas fa-link'
+                };
+                headerRow.append(`<th><i class="${fieldIcons[field]} me-2"></i>${fieldNames[field] || field}</th>`);
+            });
+
+            // 填充表格数据
+            const tableBody = $('#tableBody');
+            tableBody.empty();
+            
+            data.data.forEach((movie, index) => {
+                const row = $('<tr>');
+                data.fields.forEach(field => {
+                    let value = movie[field] || '';
+                    
+                    // 处理特殊字段
+                    if (field === 'movie_url' && value) {
+                        value = `<a href="${value}" target="_blank" class="btn btn-detail btn-outline-primary">
+                                    <i class="fas fa-external-link-alt"></i> 查看详情
+                                </a>`;
+                    } else if (field === 'rank' && value) {
+                        value = `<span class="badge bg-warning text-dark">
+                                    <i class="fas fa-star"></i> ${value}
+                                </span>`;
+                    } else if (field === 'year' && value) {
+                        value = `<span class="badge bg-info">
+                                    <i class="fas fa-calendar"></i> ${value}
+                                </span>`;
+                    } else if (field === 'genre' && value) {
+                        value = `<span class="badge bg-secondary">${value}</span>`;
+                    }
+                    
+                    row.append(`<td>${value}</td>`);
+                });
+                tableBody.append(row);
+                
+                // 添加行动画
+                row.hide().fadeIn(100 * (index + 1));
+            });
+
+            $('#resultsSection').show();
+        }
+
+        function showError(message) {
+            $('#errorMessage').text(message);
+            $('#errorAlert').show();
+        }
+    </script>
+</body>
+</html> 

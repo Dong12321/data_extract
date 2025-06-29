@@ -10,6 +10,14 @@ class MovieItem(scrapy.Item):
     title = scrapy.Field()
     rank = scrapy.Field()
     subject = scrapy.Field()  # 添加 subject 字段
+    # 新增字段
+    director = scrapy.Field()  # 导演
+    actors = scrapy.Field()    # 主演
+    year = scrapy.Field()      # 年份
+    country = scrapy.Field()   # 国家/地区
+    genre = scrapy.Field()     # 类型
+    rating_people = scrapy.Field()  # 评价人数
+    movie_url = scrapy.Field()      # 电影详情页链接
 
 
 # js新闻
