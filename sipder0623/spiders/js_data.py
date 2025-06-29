@@ -60,9 +60,22 @@ class JsDataSpider(scrapy.Spider):
         else:
             item['news_time'] = None
 
-        # foreign_content
-        html_content = response.css('div.field-body').get()
-        item['foreign_content'] = html_content.strip() if html_content else ''
+        # foreign_content 格式为 <html>\n <body>\n  <p>\n  ...\n  </p>\n </body>\n</html>
+        text_content = response.css('div.field-body *::text').getall()
+        clean_lines = [line.strip() for line in text_content if line.strip()]
+        joined_text = ' '.join(clean_lines)
+
+        formatted_html = (
+            "<html>\n"
+            " <body>\n"
+            "  <p>\n"
+            f"  {joined_text}\n"
+            "  </p>\n"
+            " </body>\n"
+            "</html>"
+        )
+
+        item['foreign_content'] = formatted_html
 
         # content
         text_content = response.css('div.field-body *::text').getall()
